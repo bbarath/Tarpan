@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+    <link rel="stylesheet" type="text/css" href="css/index.css" />
+    <title>Tarpan</title>
+</head>
+<body>
+    <div id="textarea_div" class="text_area_div" style="display: none;">
+        <div class="edit_done" id="edit_done_div" onclick="hideAncestorEdit();">Done&nbsp;&nbsp;</div>
+        <textarea class="ances_text_area" id="postit_text"></textarea>
+    </div>
+    <div class="app" id="app_div">
+        <div class="adarea">           
+        </div>
+        <div id="ances_text" class="ancestor_text">Add ancestor info here...</div>
+        <div class="audiopos_area" id="audio_position"></div>
+        <img id="people_btn" class="peoplebtn" onclick="showAncestorEdit();" src="img/editnotes.png" />
+
+        <div class="buttons_area">
+            <img class="forward30_area" onclick="forward30();" src="img/Fwd30.png" />
+            <img class="playpause_area" id="playPause" src="img/ply.png" onclick="playAudio('file:///android_asset/www/res/audio/tarpanam.mp3');" />
+            <img class="stop_area" id="stopBtn" onclick="stopAudio();" src="img/stp.png" />
+        </div>
+        <p class="anspoptext" id="ans_pop_txt" onclick="showAncestorDiv();" style="display: none;"></p>
+    </div>
+
+    <script type="text/javascript" src="phonegap.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+    <script type="text/javascript">
+        app.initialize();
+
+        setAudioPosition("0:00 / 18:44");
+
+        showAncestorInfo();
+
+        // Audio player
+        //
+        var my_media = null;
+        var mediaTimer = null;
+        var medStat = 0;
+        var totalduration = "0:00";
+
+        // appPaused
+        //
+        function appPaused() {
+            if (my_media) {
+                if (medStat == 2) {
+                    my_media.pause();
+                    document.getElementById("playPause").src = "img/ply.png";
+                }
+            }
+        }
+
+        // appPaused
+        //
+        function appResumed() {
+            // do nothing for now.
+        }
+
+        // showAncestorInfo
+        //
+        function showAncestorInfo() {
+            var value = null;
+            value = window.localStorage.getItem("AncestorInfo");
+            if (value) {
+                var ancestor_area_text = document.getElementById("ances_text");
+                ancestor_area_text.innerHTML = value;
+            }
+        }
+        //ShowAncesterEdit
+        //
+        function showAncestorEdit() {
+            var value = null;
+            value = window.localStorage.getItem("AncestorInfo");
+            var app_div = document.getElementById("app_div");
+            app_div.setAttribute('style', 'display:none;');
+
+            var ancestor_area_text = document.getElementById("textarea_div");
+            ancestor_area_text.setAttribute('style', 'display:block;');
+            var ans_text_area = document.getElementById("postit_text");
+            ans_text_area.innerText = value;
+
+            ans_text_area.focus();
+        }
+
+        //HideAncesterEdit
+        //
+        function hideAncestorEdit() {
+
+            // hide app div
+            var app_div = document.getElementById("app_div");
+            app_div.setAttribute('style', 'display:block;');
+
+            // Get the edits and store it
+            var ans_text_area = document.getElementById("postit_text");
+            var value = ans_text_area.value;
+            if (value) {
+                window.localStorage.setItem("AncestorInfo", value);
+            }
+
+            // hide the edit area
+            var ancestor_area_text = document.getElementById("textarea_div");
+            ancestor_area_text.setAttribute('style', 'display:none;');
+
+            showAncestorInfo();
+        }
+
+
+        // Play audio
+        //
+        function playAudio(src) {
+            if (my_media == null) {
+                // Create Media object from src
+                my_media = new Media(src, onSuccess, onError, mediaStatus);
+
+                // Get duration
+                var counter = 0;
+                var timerDur = setInterval(function () {
+                    counter = counter + 100;
+                    if (counter > 2000) {
+                        clearInterval(timerDur);
+                    }
+                    var dur = my_media.getDuration();
+                    if (dur > 0) {
+                        totalduration = (dur / 60).toFixed(2).replace(".", ":");
+                        clearInterval(timerDur);
+                        document.getElementById('audio_duration').innerHTML = (dur) + " sec";
+                    }
+                }, 100);
+            }
+
+            if (medStat == 0 || medStat == 3 || medStat == 4) {
+                // Play audio
+                my_media.play();
+                document.getElementById("playPause").src = "img/pas.png";
+            }
+            else if (medStat == 2) {
+                my_media.pause();
+                document.getElementById("playPause").src = "img/ply.png";
+            }
+
+            // Update my_media position every second
+            if (mediaTimer == null) {
+                mediaTimer = setInterval(function () {
+                    // get my_media position
+                    my_media.getCurrentPosition(
+                        // success callback
+                        function (position) {
+                            if (position > -1) {
+                                posmin = Math.floor(position / 60);
+                                possec = (position - (posmin * 60)).toFixed(0);
+                                if (possec < 10) {
+                                    possec = "0" + possec;
+                                }
+                                setAudioPosition(posmin + ":" + possec + " / " + totalduration);
+                            }
+                        },
+                        // error callback
+                        function (e) {
+                            console.log("Error getting pos=" + e);
+                            setAudioPosition("Error: " + e);
+                        }
+                    );
+                }, 1000);
+            }
+        }
+
+        // Pause audio
+        //
+        function pauseAudio() {
+
+            if (my_media) {
+                my_media.pause();
+            }
+            //   document.getElementById("playPause").src = "res/icon/android/play.png";
+        }
+
+        // Set audio volume
+        //
+        function setVolume(volume) {
+            if (my_media) {
+                my_media.setVolume(volume);
+            }
+        }
+
+        // forward 30 seconds
+        //
+        function forward30() {
+            if (my_media) {
+                // get my_media position
+                my_media.getCurrentPosition(
+                    // success callback
+                    function (position) {
+                        if (position > -1) {
+                            // SeekTo to current position + 30 seconds after 100 ms
+                            setTimeout(function () {
+                                my_media.seekTo(position * 1000 + 30000);
+                            }, 1);
+                        }
+                    },
+                    // error callback
+                    function (e) {
+                        console.log("Error getting pos=" + e);
+                        setAudioPosition("Error: " + e);
+                    }
+                );
+            }
+        }
+
+        // Stop audio
+        //
+        function stopAudio() {
+            if (my_media) {
+                my_media.stop();
+                my_media.release();
+            }
+            document.getElementById("playPause").src = "img/ply.png";
+            setAudioPosition("0:00 / " + totalduration);
+            clearInterval(mediaTimer);
+            mediaTimer = null;
+        }
+
+        // onSuccess Callback
+        //
+        function onSuccess() {
+            console.log("playAudio():Audio Success");
+        }
+
+        // onError Callback
+        //
+        function onError(error) {
+            alert('code: ' + error.code + '\n' +
+                  'message: ' + error.message + '\n');
+        }
+
+        // mediaStatus Callback
+        //
+        function mediaStatus(status) {
+            medStat = status;
+            if (totalduration == 0 && medStat == 2) {
+                //  totalduration = my_media.getDuration();
+            }
+        }
+
+        // Set audio position
+        //
+        function setAudioPosition(position) {
+            document.getElementById('audio_position').innerHTML = position;
+        }
+    </script>
+</body>
+</html>
